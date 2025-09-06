@@ -1,15 +1,196 @@
-# Remix compiler artifacts
-**/artifacts/
-**/artifacts/**
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
 
-# Remix plugin state folders
+# Environment variables
+.env
+.env.local
+.env.production.local
+.env.development.local
+.env.test.local
+*.env
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.bak
+.DS_Store
+Thumbs.db
+*.sublime-workspace
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+.turbo/
+.vercel/
+*.tsbuildinfo
+
+# Frontend specific
+.next/
+out/
+.cache/
+public/workbox-*.js
+public/sw.js
+public/worker-*.js
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# Smart contracts / Blockchain
+artifacts/
+cache/
+typechain/
+typechain-types/
+deployments/
+broadcast/
+**/artifacts/**
 deps/
 states/
 
-# Debug info
-*.dbg.json
-*.tsbuildinfo
+# Hardhat
+cache_hardhat/
+artifacts_hardhat/
+coverage.json
+gasReporterOutput.json
 
-# Optional
-.env
+# Foundry
+cache_forge/
+out/
+
+# OpenZeppelin
+.openzeppelin/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+prisma/migrations/dev/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+*.log
+
+# IPFS
+.ipfs/
+ipfs/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.tmp/
+
+# Debug
+*.dbg.json
+debug/
+
+# Python (for any scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Monitoring
+grafana-storage/
+prometheus-data/
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.cert
+
+# Package lock files (keep one)
+# Uncomment the ones you don't use
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env.development.local
+.env.test.local
+.env.production.local
 .env.local
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test/
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Miscellaneous
+*.bak
+*.orig
+*.rej

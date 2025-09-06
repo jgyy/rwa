@@ -1,0 +1,367 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and authorization
+model User {
+  id                String            @id @default(cuid())
+  email             String            @unique
+  username          String?           @unique
+  password          String
+  firstName         String?
+  lastName          String?
+  profileImage      String?
+  walletAddress     String?           @unique
+  role              UserRole          @default(USER)
+  status            UserStatus        @default(ACTIVE)
+  emailVerified     Boolean           @default(false)
+  twoFactorEnabled  Boolean           @default(false)
+  
+  // Relations
+  assets            Asset[]           @relation("AssetOwner")
+  createdAssets     Asset[]           @relation("AssetCreator")
+  transactions      Transaction[]
+  bids              Bid[]
+  notifications     Notification[]
+  activities        Activity[]
+  kycVerification   KYCVerification?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([email])
+  @@index([walletAddress])
+}
+
+// KYC Verification for users
+model KYCVerification {
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  documentType      String
+  documentNumber    String
+  documentUrl       String?           // IPFS hash
+  selfieUrl         String?           // IPFS hash
+  
+  status            KYCStatus         @default(PENDING)
+  verifiedAt        DateTime?
+  rejectionReason   String?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Real World Asset model
+model Asset {
+  id                String            @id @default(cuid())
+  tokenId           String?           @unique // Blockchain token ID
+  contractAddress   String?           // Smart contract address
+  
+  name              String
+  description       String
+  category          AssetCategory
+  status            AssetStatus       @default(DRAFT)
+  
+  // Asset Details
+  totalSupply       Int               @default(1)
+  availableSupply   Int               @default(1)
+  price             Decimal           @db.Decimal(20, 8)
+  currency          String            @default("USD")
+  
+  // Metadata
+  metadataUri       String?           // IPFS URI
+  imageUrl          String?           // IPFS or external URL
+  documentsUrl      String?           // IPFS folder hash
+  
+  // Legal Information
+  legalName         String?
+  legalDescription  String?
+  jurisdiction      String?
+  complianceInfo    Json?
+  
+  // Valuation
+  valuationAmount   Decimal?          @db.Decimal(20, 8)
+  valuationDate     DateTime?
+  valuationReport   String?           // IPFS hash
+  
+  // Relations
+  ownerId           String
+  owner             User              @relation("AssetOwner", fields: [ownerId], references: [id])
+  creatorId         String
+  creator           User              @relation("AssetCreator", fields: [creatorId], references: [id])
+  
+  transactions      Transaction[]
+  bids              Bid[]
+  attributes        AssetAttribute[]
+  documents         Document[]
+  activities        Activity[]
+  
+  // Blockchain Info
+  chainId           Int?
+  blockNumber       BigInt?
+  transactionHash   String?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([tokenId])
+  @@index([category])
+  @@index([status])
+  @@index([ownerId])
+}
+
+// Asset attributes for flexible metadata
+model AssetAttribute {
+  id                String            @id @default(cuid())
+  assetId           String
+  asset             Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  traitType         String
+  value             String
+  displayType       String?
+  
+  createdAt         DateTime          @default(now())
+  
+  @@unique([assetId, traitType])
+}
+
+// Documents associated with assets
+model Document {
+  id                String            @id @default(cuid())
+  assetId           String
+  asset             Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  name              String
+  type              DocumentType
+  url               String            // IPFS hash
+  size              Int?
+  mimeType          String?
+  
+  isPublic          Boolean           @default(false)
+  isVerified        Boolean           @default(false)
+  
+  uploadedBy        String
+  createdAt         DateTime          @default(now())
+  
+  @@index([assetId])
+}
+
+// Transaction records
+model Transaction {
+  id                String            @id @default(cuid())
+  
+  type              TransactionType
+  status            TransactionStatus @default(PENDING)
+  
+  assetId           String
+  asset             Asset             @relation(fields: [assetId], references: [id])
+  
+  fromUserId        String?
+  fromUser          User?             @relation(fields: [fromUserId], references: [id])
+  
+  toAddress         String            // Can be wallet address
+  amount            Int               // Number of tokens
+  price             Decimal           @db.Decimal(20, 8)
+  currency          String            @default("USD")
+  
+  // Blockchain Info
+  transactionHash   String?           @unique
+  blockNumber       BigInt?
+  gasUsed           BigInt?
+  gasPrice          BigInt?
+  
+  metadata          Json?
+  
+  createdAt         DateTime          @default(now())
+  completedAt       DateTime?
+  
+  @@index([assetId])
+  @@index([fromUserId])
+  @@index([status])
+  @@index([transactionHash])
+}
+
+// Bid/Offer system
+model Bid {
+  id                String            @id @default(cuid())
+  
+  assetId           String
+  asset             Asset             @relation(fields: [assetId], references: [id])
+  
+  bidderId          String
+  bidder            User              @relation(fields: [bidderId], references: [id])
+  
+  amount            Int               // Number of tokens
+  pricePerToken     Decimal           @db.Decimal(20, 8)
+  totalPrice        Decimal           @db.Decimal(20, 8)
+  currency          String            @default("USD")
+  
+  status            BidStatus         @default(ACTIVE)
+  expiresAt         DateTime?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([assetId])
+  @@index([bidderId])
+  @@index([status])
+}
+
+// Activity log
+model Activity {
+  id                String            @id @default(cuid())
+  
+  type              ActivityType
+  description       String
+  
+  userId            String?
+  user              User?             @relation(fields: [userId], references: [id])
+  
+  assetId           String?
+  asset             Asset?            @relation(fields: [assetId], references: [id])
+  
+  metadata          Json?
+  ipAddress         String?
+  userAgent         String?
+  
+  createdAt         DateTime          @default(now())
+  
+  @@index([userId])
+  @@index([assetId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Notifications
+model Notification {
+  id                String            @id @default(cuid())
+  
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type              NotificationType
+  title             String
+  message           String
+  
+  isRead            Boolean           @default(false)
+  metadata          Json?
+  
+  createdAt         DateTime          @default(now())
+  readAt            DateTime?
+  
+  @@index([userId])
+  @@index([isRead])
+}
+
+// Enums
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+  ISSUER
+  VALIDATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum KYCStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AssetCategory {
+  REAL_ESTATE
+  COMMODITY
+  EQUITY
+  DEBT
+  ART
+  COLLECTIBLE
+  INTELLECTUAL_PROPERTY
+  OTHER
+}
+
+enum AssetStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  TOKENIZED
+  ACTIVE
+  PAUSED
+  DELISTED
+}
+
+enum DocumentType {
+  LEGAL
+  VALUATION
+  OWNERSHIP
+  COMPLIANCE
+  INSURANCE
+  OTHER
+}
+
+enum TransactionType {
+  MINT
+  TRANSFER
+  BURN
+  LIST
+  DELIST
+  PURCHASE
+  BID_ACCEPTED
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum BidStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ActivityType {
+  USER_SIGNUP
+  USER_LOGIN
+  ASSET_CREATED
+  ASSET_MINTED
+  ASSET_LISTED
+  ASSET_DELISTED
+  ASSET_TRANSFERRED
+  BID_PLACED
+  BID_ACCEPTED
+  BID_REJECTED
+  TRANSACTION_INITIATED
+  TRANSACTION_COMPLETED
+  KYC_SUBMITTED
+  KYC_VERIFIED
+}
+
+enum NotificationType {
+  SYSTEM
+  TRANSACTION
+  BID
+  ASSET
+  KYC
+  SECURITY
+}

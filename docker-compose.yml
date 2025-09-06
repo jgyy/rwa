@@ -1,0 +1,269 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: rwa-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rwa_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rwa_password}
+      POSTGRES_DB: ${POSTGRES_DB:-rwa_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./rwa-backend/prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - rwa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rwa_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: rwa-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-rwa_redis_password}
+    volumes:
+      - redis_data:/data
+    networks:
+      - rwa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # IPFS Node
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: rwa-ipfs
+    restart: unless-stopped
+    ports:
+      - "4001:4001" # Swarm
+      - "5001:5001" # API
+      - "8080:8080" # Gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+      - ipfs_export:/export
+    environment:
+      IPFS_PROFILE: server
+    networks:
+      - rwa-network
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./rwa-backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: rwa-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rwa_user}:${POSTGRES_PASSWORD:-rwa_password}@postgres:5432/${POSTGRES_DB:-rwa_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-rwa_redis_password}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_change_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your_jwt_refresh_secret_change_in_production}
+      IPFS_API_URL: http://ipfs:5001
+      IPFS_GATEWAY_URL: http://ipfs:8080
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+    networks:
+      - rwa-network
+    volumes:
+      - ./rwa-backend:/app
+      - /app/node_modules
+      - /app/dist
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./rwa-frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: rwa-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      NEXT_PUBLIC_IPFS_GATEWAY: ${NEXT_PUBLIC_IPFS_GATEWAY:-http://localhost:8080}
+      NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${WALLET_CONNECT_PROJECT_ID}
+      NEXT_PUBLIC_ALCHEMY_API_KEY: ${ALCHEMY_API_KEY}
+      NEXT_PUBLIC_CHAIN_ID: ${CHAIN_ID:-31337}
+    depends_on:
+      - backend
+    networks:
+      - rwa-network
+    volumes:
+      - ./rwa-frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+  # Hardhat Local Blockchain
+  hardhat:
+    build:
+      context: ./rwa-contracts
+      dockerfile: Dockerfile
+    container_name: rwa-hardhat
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+    command: npx hardhat node --hostname 0.0.0.0
+    networks:
+      - rwa-network
+    volumes:
+      - ./rwa-contracts:/app
+      - /app/node_modules
+      - hardhat_data:/app/.hardhat
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: rwa-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - rwa-network
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rwa-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - rwa-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rwa-grafana
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - rwa-network
+
+  # PgAdmin for Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: rwa-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@rwa.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - rwa-network
+
+  # Portainer for Container Management
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: rwa-portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - rwa-network
+
+  # Optional Monitoring Exporters (uncomment if needed)
+  # node-exporter:
+  #   image: prom/node-exporter:latest
+  #   container_name: rwa-node-exporter
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9100:9100"
+  #   volumes:
+  #     - /proc:/host/proc:ro
+  #     - /sys:/host/sys:ro
+  #   command:
+  #     - '--path.procfs=/host/proc'
+  #     - '--path.sysfs=/host/sys'
+  #   networks:
+  #     - rwa-network
+
+# Networks
+networks:
+  rwa-network:
+    driver: bridge
+    name: rwa-network
+
+# Volumes
+volumes:
+  postgres_data:
+    name: rwa-postgres-data
+  redis_data:
+    name: rwa-redis-data
+  ipfs_data:
+    name: rwa-ipfs-data
+  ipfs_export:
+    name: rwa-ipfs-export
+  hardhat_data:
+    name: rwa-hardhat-data
+  prometheus_data:
+    name: rwa-prometheus-data
+  grafana_data:
+    name: rwa-grafana-data
+  pgadmin_data:
+    name: rwa-pgadmin-data
+  portainer_data:
+    name: rwa-portainer-data
+  nginx_logs:
+    name: rwa-nginx-logs

@@ -1,0 +1,127 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Text files
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.sol text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.bash text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+*.less text eol=lf
+*.html text eol=lf
+*.xml text eol=lf
+*.svg text eol=lf
+*.txt text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+*.graphql text eol=lf
+*.gql text eol=lf
+*.env text eol=lf
+*.prisma text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.mdx text eol=lf
+README text eol=lf
+LICENSE text eol=lf
+AUTHORS text eol=lf
+CONTRIBUTORS text eol=lf
+CONTRIBUTING text eol=lf
+CHANGELOG text eol=lf
+HISTORY text eol=lf
+NEWS text eol=lf
+
+# Config files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+.eslintrc text eol=lf
+.eslintrc.json text eol=lf
+.eslintrc.js text eol=lf
+.prettierrc text eol=lf
+.prettierrc.json text eol=lf
+.prettierrc.js text eol=lf
+.babelrc text eol=lf
+.browserslistrc text eol=lf
+tsconfig.json text eol=lf
+jsconfig.json text eol=lf
+package.json text eol=lf
+package-lock.json text eol=lf
+yarn.lock text eol=lf
+pnpm-lock.yaml text eol=lf
+composer.json text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+docker-compose.yaml text eol=lf
+Makefile text eol=lf
+makefile text eol=lf
+
+# Smart Contract files
+*.sol text eol=lf linguist-language=Solidity
+*.vy text eol=lf linguist-language=Python
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+*.jar binary
+*.war binary
+*.ear binary
+*.dll binary
+*.exe binary
+*.so binary
+*.dylib binary
+*.lib binary
+*.a binary
+*.node binary
+*.wasm binary
+
+# Exclude from language statistics
+node_modules/* linguist-vendored
+dist/* linguist-generated
+build/* linguist-generated
+out/* linguist-generated
+.next/* linguist-generated
+coverage/* linguist-generated
+*.min.js linguist-vendored
+*.min.css linguist-vendored
+vendor/* linguist-vendored
+public/vendor/* linguist-vendored
+
+# Mark specific file types for GitHub language detection
+*.sol linguist-language=Solidity
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+*.js linguist-language=JavaScript
+*.jsx linguist-language=JavaScript
+
+# Diff settings for specific files
+*.sol diff=solidity
+*.json diff=json
+*.md diff=markdown
